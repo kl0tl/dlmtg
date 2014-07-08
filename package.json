@@ -1,0 +1,18 @@
+{
+  "name": "dl-mtgimages",
+  "version": "0.0.0",
+  "description": "Automagicaly downloads images of magic cards on mtgimage.com",
+  "main": "dl-mtgimages.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "kl0tl",
+  "license": "ISC",
+  "dependencies": {
+    "phantomjs": "~1.9.7-1",
+    "http-get": "~0.5.10",
+    "mkdirp": "~0.3.5",
+    "kew": "~0.4.0",
+    "stdio": "~0.1.6"
+  }
+}
