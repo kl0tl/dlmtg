@@ -1,8 +1,8 @@
 {
-  "name": "dl-mtgimages",
+  "name": "dlmtg",
   "version": "0.0.0",
-  "description": "Automagicaly downloads images of magic cards on mtgimage.com",
-  "main": "dl-mtgimages.js",
+  "description": "Automagicaly downloads images or json data of magic cards",
+  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
