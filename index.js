@@ -10,6 +10,7 @@ childProcess = require('child_process');
 
 var multiline, clc, docopt, phantomjs, http, mkdirp, Q;
 
+multiline = require('multiline');
 clc = require('cli-color');
 docopt = require('docopt').docopt;
 phantomjs = require('phantomjs');
