@@ -2,11 +2,13 @@
 
 'use strict';
 
-var fs, path, childProcess, clc, docopt, phantomjs, http, mkdirp, Q;
+var fs, path, childProcess;
 
 fs = require('fs');
 path = require('path');
 childProcess = require('child_process');
+
+var multiline, clc, docopt, phantomjs, http, mkdirp, Q;
 
 clc = require('cli-color');
 docopt = require('docopt').docopt;
@@ -15,48 +17,54 @@ http = require('http-get');
 mkdirp = require('mkdirp');
 Q = require('kew');
 
-fs.readFile('./README.md', {encoding: 'utf8'}, function (oO, doc) {
-  var pkg, options, type, source, dest, urlsCrawler, setsDownloads;
+var doc, pkg, options, type, source, dest, urlsCrawler, setsDownloads;
 
-  if (oO) return console.log(clc.red(oO));
+doc = multiline(function () {/*
+  Download `Magic The Gathering` card’s data.
 
-  pkg = require('./package.json');
-  options = docopt(doc, {version: pkg.version});
+  Usage: dlmtg [<dest>] [options]
 
-  type = options['--type'] || options['-type'];
+  -h --help               Show this.
+  -v --version            Show version number.
+  -t --type (image|json)  Type of data to download.
+*/});
 
-  if (type === 'image') {
-    source = 'http://mtgimage.com/actual/set/';
-  } else if (type === 'json') {
-    source = 'http://mtgjson.com/json/';
-  } else if (typeof type === 'string') {
-    return log(clc.red('The type option must be set to image or json'));
-  } else {
-    return log(clc.red('The type option is missing'));
-  }
+pkg = require('./package.json');
+options = docopt(doc, {version: pkg.version});
 
-  dest = options.dest || path.join(__dirname, 'downloads', type);
+type = options['--type'] || options['-type'];
 
-  urlsCrawler = path.join(__dirname, 'crawlers', 'urls-crawler.js');
-  setsDownloads = Q.defer();
+if (type === 'image') {
+  source = 'http://mtgimage.com/actual/set/';
+} else if (type === 'json') {
+  source = 'http://mtgjson.com/json/';
+} else if (typeof type === 'string') {
+  return log(clc.red('The type option must be set to image or json'));
+} else {
+  return log(clc.red('The type option is missing'));
+}
 
-  childProcess.execFile(phantomjs.path, [urlsCrawler, source], function (oO, stdout) {
-    if (oO) setsDownloads.reject(oO);
-    else setsDownloads.resolve(JSON.parse(stdout));
-  });
+dest = options.dest || path.join(__dirname, 'downloads', type);
 
-  setsDownloads.then(function (setsUrls) {
-    return setsUrls.reduce(function (all, setUrl) {
-      return all.then(function () {
-        if (type === 'json') return downloadAsJson(setUrl, dest);
-        if (type === 'image') return downloadAsImage(setUrl, dest);
-      });
-    }, Q.resolve());
-  }).then(function () {
-    log(clc.green('done'));
-  }).fail(function (oO) {
-    log(clc.red(oO.message));
-  });
+urlsCrawler = path.join(__dirname, 'crawlers', 'urls-crawler.js');
+setsDownloads = Q.defer();
+
+childProcess.execFile(phantomjs.path, [urlsCrawler, source], function (oO, stdout) {
+  if (oO) setsDownloads.reject(oO);
+  else setsDownloads.resolve(JSON.parse(stdout));
+});
+
+setsDownloads.then(function (setsUrls) {
+  return setsUrls.reduce(function (all, setUrl) {
+    return all.then(function () {
+      if (type === 'json') return downloadAsJson(setUrl, dest);
+      if (type === 'image') return downloadAsImage(setUrl, dest);
+    });
+  }, Q.resolve());
+}).then(function () {
+  log(clc.green('done'));
+}).fail(function (oO) {
+  log(clc.red(oO.message));
 });
 
 function downloadAsJson(setUrl, dest) {
