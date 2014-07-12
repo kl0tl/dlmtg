@@ -1,60 +1,65 @@
+#! /usr/bin/env node
+
 'use strict';
 
-var childProcess, phantomjs, path, stdio, http, mkdirp, Q, options, source, dest, urlsCrawler, setsDownloads;
+var fs, path, childProcess, clc, docopt, phantomjs, http, mkdirp, Q;
 
-childProcess = require('child_process');
-phantomjs = require('phantomjs');
+fs = require('fs');
 path = require('path');
-stdio = require('stdio');
+childProcess = require('child_process');
+
+clc = require('cli-color');
+docopt = require('docopt').docopt;
+phantomjs = require('phantomjs');
 http = require('http-get');
 mkdirp = require('mkdirp');
 Q = require('kew');
 
-options = stdio.getopt({
-  type: {
-    key: 't',
-    args: 1,
-    description: 'The type of data to download, json or images (mandatory)'
-  },
-  help: {
-    key: 'h'
+fs.readFile('./README.md', {encoding: 'utf8'}, function (oO, doc) {
+  var pkg, options, type, source, dest, urlsCrawler, setsDownloads;
+
+  if (oO) return console.log(clc.red(oO));
+
+  pkg = require('./package.json');
+  options = docopt(doc, {version: pkg.version});
+
+  type = options['--type'] || options['-type'];
+
+  if (type === 'image') {
+    source = 'http://mtgimage.com/actual/set/';
+  } else if (type === 'json') {
+    source = 'http://mtgjson.com/json/';
+  } else if (typeof type === 'string') {
+    return log(clc.red('The type option must be set to image or json'));
+  } else {
+    return log(clc.red('The type option is missing'));
   }
-}, 'dest');
 
-if (options.type === 'image') {
-  source = 'http://mtgimage.com/actual/set/';
-} else if (options.type === 'json') {
-  source = 'http://mtgjson.com/json/';
-} else if ('type' in options) {
-  throw new Error('The "type" option must be set to "image" or "json"');
-} else {
-  throw new Error('The "type" option is missing');
-}
+  dest = options.dest || path.join(__dirname, 'downloads', type);
 
-dest = options.args && options.args[0] || path.join(__dirname, 'downloads', options.type);
+  urlsCrawler = path.join(__dirname, 'crawlers', 'urls-crawler.js');
+  setsDownloads = Q.defer();
 
-urlsCrawler = path.join(__dirname, 'crawlers', 'urls-crawler.js');
-setsDownloads = Q.defer();
+  childProcess.execFile(phantomjs.path, [urlsCrawler, source], function (oO, stdout) {
+    if (oO) setsDownloads.reject(oO);
+    else setsDownloads.resolve(JSON.parse(stdout));
+  });
 
-childProcess.execFile(phantomjs.path, [urlsCrawler, source], function (oO, stdout, stderr) {
-  if (oO) setsDownloads.reject(oO);
-  else setsDownloads.resolve(JSON.parse(stdout));
+  setsDownloads.then(function (setsUrls) {
+    return setsUrls.reduce(function (all, setUrl) {
+      return all.then(function () {
+        if (type === 'json') return downloadAsJson(setUrl, dest);
+        if (type === 'image') return downloadAsImage(setUrl, dest);
+      });
+    }, Q.resolve());
+  }).then(function () {
+    log(clc.green('done'));
+  }).fail(function (oO) {
+    log(clc.red(oO.message));
+  });
 });
 
-setsDownloads.then(function (setsUrls) {
-  return setsUrls.reduce(function (all, setUrl) {
-    return all.then(function () {
-      if (options.type === 'json') return downloadAsJson(setUrl);
-      if (options.type === 'image') return downloadAsImage(setUrl);
-    });
-  }, Q.resolve());
-}).then(function () {
-  console.log('done');
-}).fail(function (oO) {
-  console.log(oO);
-});
-
-function downloadAsJson(setUrl) {
+function downloadAsJson(setUrl, dest) {
   var setDownload, dir;
 
   setDownload = Q.defer();
@@ -64,7 +69,7 @@ function downloadAsJson(setUrl) {
   } else {
     dir = path.basename(setUrl, '.json').toUpperCase();
 
-    console.log('download set ' + dir);
+    log('download set ' + clc.magenta(dir));
 
     mkdirp(dest, function (oO) {
       if (oO) return setDownload.reject(oO);
@@ -72,7 +77,7 @@ function downloadAsJson(setUrl) {
       http.get(setUrl, path.join(dest, path.basename(setUrl)), function (oO) {
         if (oO) return setDownload.reject(oO);
 
-        console.log('  ' + setUrl + ' downloaded');
+        log('  ' + clc.green('downloaded') + ' ' + setUrl);
 
         setDownload.resolve();
       });
@@ -82,36 +87,43 @@ function downloadAsJson(setUrl) {
   return setDownload.promise;
 }
 
-function downloadAsImage(setUrl) {
-  var setDownload = Q.defer(),
-    dir = path.basename(setUrl).toUpperCase();
+function downloadAsImage(setUrl, dest) {
+  var setDownload, dir;
+
+  setDownload = Q.defer();
+  dir = path.basename(setUrl).toUpperCase();
 
   mkdirp(path.join(dest, dir), function (oO) {
     if (oO) return setDownload.reject(oO);
 
-    console.log('download set ' + dir);
+    log('download set ' + clc.magenta(dir));
 
-    childProcess.execFile(phantomjs.path, [path.join(__dirname, 'crawlers', 'images-crawler.js'), setUrl], function (oO, stdout, stderr) {
+    childProcess.execFile(phantomjs.path, [path.join(__dirname, 'crawlers', 'images-crawler.js'), setUrl], function (oO, stdout) {
+      var cardsUrls;
+
       if (oO) return setDownload.reject(oO);
 
-      var cardsUrls = JSON.parse(stdout);
+      cardsUrls = JSON.parse(stdout);
 
       Q.all(cardsUrls.map(function (cardUrl) {
-        var cardName = decodeURIComponent(path.basename(cardUrl)),
-          cardDownload = Q.defer();
+        var cardName, cardDownload;
 
-        console.log('  download card ' + cardUrl);
+        cardDownload = decodeURIComponent(path.basename(cardUrl));
+        cardDownload = Q.defer();
+
+        log('  download card ' + clc.magenta(cardUrl));
 
         http.get(cardUrl, path.join(dest, dir, cardName), function (oO) {
           if (oO) return cardDownload.reject(oO);
 
-          console.log('    ' + cardUrl + ' downloaded');
+          log('    ' + clc.green('downloaded') + ' ' + cardUrl);
 
           cardDownload.resolve();
         });
 
         return cardDownload.promise;
       })).then(function () {
+        log('  ' + clc.green('downloaded') + ' ' + setUrl);
         setDownload.resolve();
       }, function () {
         setDownload.reject();
@@ -120,4 +132,8 @@ function downloadAsImage(setUrl) {
   });
 
   return setDownload.promise;
+}
+
+function log(message) {
+  console.log(clc.bgBlack('dlmgt') + ' ' + message);
 }
