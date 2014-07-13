@@ -137,7 +137,7 @@ function downloadAsImage(setUrl, dest) {
           cardDownload.resolve();
         };
 
-        log('  download card ' + clc.magenta(cardUrl));
+        log('  download card ' + clc.magenta(cardName));
 
         fs.exists(path.join(dest, dirname, cardName), function (exists) {
           if (exists && !override) return then(null);
