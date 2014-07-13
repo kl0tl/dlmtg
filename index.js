@@ -18,7 +18,7 @@ http = require('http-get');
 mkdirp = require('mkdirp');
 Q = require('kew');
 
-var doc, pkg, options, type, source, dest, urlsCrawler, setsDownloads;
+var doc, pkg, options, type, override, source, dest, urlsCrawler, setsDownloads;
 
 doc = multiline(function () {/*
   Download `Magic The Gathering` card’s data.
@@ -27,13 +27,15 @@ doc = multiline(function () {/*
 
   -h --help               Show this.
   -v --version            Show version number.
-  -t --type (image|json)  Type of data to download.
+  -o --override           Replace existing data in dest.
+  -t --type (image|json)  Type of data to download (mandatory).
 */});
 
 pkg = require('./package.json');
 options = docopt(doc, {version: pkg.version});
 
-type = options['--type'] || options['-type'];
+type = options['--type'] || options['-t'];
+override = options['--override'] || options['-o'];
 
 if (type === 'image') {
   source = 'http://mtgimage.com/actual/set/';
@@ -69,26 +71,33 @@ setsDownloads.then(function (setsUrls) {
 });
 
 function downloadAsJson(setUrl, dest) {
-  var setDownload, dir;
+  var setDownload, filename, basename, then;
 
   setDownload = Q.defer();
 
   if (path.extname(setUrl) === '.zip') {
     setDownload.resolve();
   } else {
-    dir = path.basename(setUrl, '.json').toUpperCase();
+    filename = path.basename(setUrl, '.json').toUpperCase();
+    basename = path.basename(setUrl);
 
-    log('download set ' + clc.magenta(dir));
-
-    mkdirp(dest, function (oO) {
+    then = function then(oO) {
       if (oO) return setDownload.reject(oO);
 
-      http.get(setUrl, path.join(dest, path.basename(setUrl)), function (oO) {
+      log('  ' + clc.green('downloaded') + ' ' + setUrl);
+
+      setDownload.resolve();
+    };
+
+    log('download set ' + clc.magenta(filename));
+
+    fs.exists(path.join(dest, basename), function (exists) {
+      if (exists && !override) return then(null);
+
+      mkdirp(dest, function (oO) {
         if (oO) return setDownload.reject(oO);
 
-        log('  ' + clc.green('downloaded') + ' ' + setUrl);
-
-        setDownload.resolve();
+        http.get(setUrl, path.join(dest, basename), then);
       });
     });
   }
@@ -97,15 +106,15 @@ function downloadAsJson(setUrl, dest) {
 }
 
 function downloadAsImage(setUrl, dest) {
-  var setDownload, dir;
+  var setDownload, dirname;
 
   setDownload = Q.defer();
-  dir = path.basename(setUrl).toUpperCase();
+  dirname = path.basename(setUrl).toUpperCase();
 
-  mkdirp(path.join(dest, dir), function (oO) {
+  mkdirp(path.join(dest, dirname), function (oO) {
     if (oO) return setDownload.reject(oO);
 
-    log('download set ' + clc.magenta(dir));
+    log('download set ' + clc.magenta(dirname));
 
     childProcess.execFile(phantomjs.path, [path.join(__dirname, 'crawlers', 'images-crawler.js'), setUrl], function (oO, stdout) {
       var cardsUrls;
@@ -115,19 +124,25 @@ function downloadAsImage(setUrl, dest) {
       cardsUrls = JSON.parse(stdout);
 
       Q.all(cardsUrls.map(function (cardUrl) {
-        var cardName, cardDownload;
+        var cardName, cardDownload, then;
 
-        cardDownload = decodeURIComponent(path.basename(cardUrl));
+        cardName = decodeURIComponent(path.basename(cardUrl));
         cardDownload = Q.defer();
 
-        log('  download card ' + clc.magenta(cardUrl));
-
-        http.get(cardUrl, path.join(dest, dir, cardName), function (oO) {
+        then = function then(oO) {
           if (oO) return cardDownload.reject(oO);
 
           log('    ' + clc.green('downloaded') + ' ' + cardUrl);
 
           cardDownload.resolve();
+        };
+
+        log('  download card ' + clc.magenta(cardUrl));
+
+        fs.exists(path.join(dest, dirname, cardName), function (exists) {
+          if (exists && !override) return then(null);
+
+          http.get(cardUrl, path.join(dest, dirname, cardName), then);
         });
 
         return cardDownload.promise;
