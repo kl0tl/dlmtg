@@ -6,8 +6,15 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:Kl0tl/dlmtg.git"
+  },
   "author": "kl0tl",
   "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Kl0tl/dlmtg/issues"
+  },
   "dependencies": {
     "phantomjs": "~1.9.7-1",
     "http-get": "~0.5.10",
@@ -17,11 +24,8 @@
     "cli-color": "~0.3.2",
     "multiline": "~0.3.4"
   },
+  "homepage": "https://github.com/Kl0tl/dlmtg",
   "bin": {
     "dlmtg": "index.js"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git@github.com:Kl0tl/dlmtg.git"
   }
 }
