@@ -1,7 +1,7 @@
 {
   "name": "dlmtg",
   "version": "1.1.1",
-  "description": "Download `Magic The Gathering` card’s data.",
+  "description": "Download `Magic The Gathering` card’s data from (http://mtgimage.com) and (http://mtgjson.com).",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

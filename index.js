@@ -21,7 +21,7 @@ Q = require('kew');
 var doc, pkg, options, type, override, source, dest, urlsCrawler, setsDownloads;
 
 doc = multiline(function () {/*
-  Download `Magic The Gathering` card’s data.
+  Download `Magic The Gathering` card’s data from (http://mtgimage.com) and (http://mtgjson.com).
 
   Usage: dlmtg [<dest>] [options]
 

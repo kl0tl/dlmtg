@@ -1,7 +1,7 @@
 # dlmgt
 
 ```
-Download `Magic The Gathering` card’s data.
+Download `Magic The Gathering` card’s data from (http://mtgimage.com) and (http://mtgjson.com).
 
 Usage: dlmtg [<dest>] [options]
 
