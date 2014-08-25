@@ -10,6 +10,14 @@
     "type": "git",
     "url": "git@github.com:Kl0tl/dlmtg.git"
   },
+  "keywords": [
+    "magic",
+    "the",
+    "gathering",
+    "mtg",
+    "json",
+    "image"
+  ],
   "author": "kl0tl",
   "license": "MIT",
   "bugs": {
